@@ -1,0 +1,21 @@
+---
+title: "Final RMarkdown"
+author: "Team Po-Data Science: Amy Luo, Austin Tucker, Han Choi, Juliet McCann, Yeeun Lee"
+date: "December 2021"
+output:
+  html_document:
+    theme:
+      bootswatch: 'cosmo'
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Predicting District School Funding and Academic Achievment
+
+## Overview and Motivation
+
+
