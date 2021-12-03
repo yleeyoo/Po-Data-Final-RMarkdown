@@ -51,6 +51,8 @@ In the first part of our project, we aim to understand the variables that predic
 
 Data for this portion of the project is obtained from the Stanford
 
+**this still needs to be done-- describing the data source**
+
 ```{r}
 # Load achievement data (district, CS, pooled) 
 # data obtained from: "https://stacks.stanford.edu/file/druid:db586ns4974/seda_geodist_pool_cs_4.0.dta"
