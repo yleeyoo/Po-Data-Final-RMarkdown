@@ -523,8 +523,84 @@ ggplot(aes(x=sesavgall, y=cs_mn_avg_ol), data = dat) +
 
 ```
 
-*Next we further explore the relationship between academic achievement and socioecnomic factors by looking at the percent of students receiving free lunch_____ please continue on from here! hwaiting ye eun!*
+## School-Related Food-Assistance Programs and Average Academic Achievement 
 
+We further explore the relationship between academic achievement and socioeconomic factors by looking at how school-related food-assistance programs impact academic achievement outcomes at a national level. There were two variables that related to food-assistance programs. One that measured the proportion of households receiving Supplemental Nutrition Assistance Program (SNAP) benefits in a district and one that measured percent free or reduced lunch in a district. From the scatter plots below we can observe that, unsurprisingly, both were related to academic achievement in a similar way. Both variables have a clear linear relationship with academic achievement where districts with higher rates of supplemental food assistance programs had lower academic achievement rates. This relationship makes sense given that both of these variables are highly related to income and poverty. For instance, individuals and families must classify as low-income to be eligible for SNAP benefits. Districts with higher poverty rates likely have higher rates of food-assistance programs, less academic resources and investment in education and therefore lower academic results. 
+
+```{r}
+bst_dat <- dat %>% dplyr::select(cs_mn_avg_ol| perfrl) 
+bst_dat2<- covs %>% dplyr::select(perfrl |urban|sesavgall)
+dat_free_lunch <- full_join(bst_dat, bst_dat2)
+
+
+#snap receipt rate 
+snap <- ML.dta %>%  ggplot(aes(x=snap_all,y=cs_mn_avg_ol))+geom_point(color="blue")+labs(x="% Snap Benefits", y="Academic Achievement", title="SNAP Benefits vs. Academic Achievement in Districts");snap
+
+#perfrl percent free or reduced lunch in the district
+free_red <- dat_free_lunch  %>% ggplot(aes(x=perfrl,y=cs_mn_avg_ol))+geom_point(color="goldenrod")+labs(x="% Free or Reduced Lunch", y="Academic Achievement", title="Free or Reduced Lunch vs. Academic Achievement in Districts"); free_red
+```
+
+Other relevant variables that can be considered alongside academic achievement and food-related policies are geographic location (urban vs. rural) and socioeconomic status because both of these factors highly influence food and education quality and accessibility. From the graphs below it seems that higher socioeconomic status was related to higher academic achievement. Additionally, it seems that districts in urban and rural areas had similar academic achievement outcomes.
+
+
+```{r}
+#ses
+ses <- dat_free_lunch %>% ggplot(aes(x=sesavgall,y=cs_mn_avg_ol))+geom_point(color="cornflowerblue")+labs(x="Socioeconomic Status", y="Academic Achievement", title="SES vs. Academic Achievement in Districts"); ses
+
+#urban/rural
+urban <- dat_free_lunch  %>% mutate(urban=recode(urban,`1` = "Urban", `0` = "Rural")) %>% ggplot(aes(x=as.factor(urban),y=cs_mn_avg_ol))+geom_boxplot()+labs(x="Geography", y="Academic Achievement", title="Urban/Rural vs. Academic Achievement in Districts"); urban 
+```
+
+## Regression Model Without Interaction Terms
+
+Since we are interested in school-related food-assistance policy, we chose percent free or reduced lunch in the district as our variable of interest for this analysis. While SNAP benefits influence academic achievement outcomes, the program targets individuals and households, not schools directly. Moreover, as shown before, percent free or reduced lunch was a stronger predictor of academic achievement than SNAP benefits. We will estimate the effect of percent free or reduced lunch, socioeconomic status, and geography on academic achievement by running a regression model.
+
+```{r}
+#regression model no interaction
+model <- lm(cs_mn_avg_ol~perfrl+urban+sesavgall, data=dat_free_lunch)
+broom::tidy(model)
+```
+
+From our model, we can see that our main predictor (percent free or reduced lunch) as well as the other two covariates (socioeconomic status and geography) have a statistically significant relationship with the outcome variable (academic achievement) at a 5% significance level. Specifically:
+
+* perfrl: Among rural districts with average SES, a one unit increase in percent free or reduced lunch was associated with being 1.034795357 standard deviation units below the national district average academic achievement.
+
+* urban: Districts in urban areas with average SES and no percent free or reduced lunch had academic achievement rates that were 0.005108208 standard deviation units below the national district average academic achievement. 
+
+* sesavgall: Among districts in rural areas and with no percent free or reduced lunch, a one unit increase in socioeconomic status was associated with being 0.075998091 standard deviation units above the national district average academic achievement.
+
+This model assumes that that the effect of any predictor (percent free or reduced lunch, SES, geography) on the outcome (academic achievement) is independent of the other predictors in the model. However, this may not be a reasonable assumption given that percent free or reduced lunch may have a different effect on academic achievement based on different values of socioeconomic status and urban versus rural settings. Therefore, as opposed to considering the effect of socioeconomic status and geography in isolation, we could see how they interact with perfect free or reduced lunch by adding interaction terms in our model.
+
+## Regression Model with Interaction Terms
+
+```{r}
+#regression model with interaction 
+model2 <- lm(cs_mn_avg_ol~perfrl+urban+sesavgall+perfrl*urban+perfrl*sesavgall, data=dat_free_lunch)
+broom::tidy(model2)
+```
+
+From this interaction model, we can see that our interaction terms are both statistically significant. Hence, we know that the effect of percent free or reduced lunch on academic achievement is different for urban versus rural districts as well as for different values of socioeconomic status. We can show the interaction visually by graphing the relationship between percent free or reduced lunch and academic achievement by urban versus rural districts and for different values of socioeconomic status. However, to better plot and interpret the values of socioeconomic status which is currently a continuous variable, we can create categories like they do in the Stanford Education Data Archive Technical Documentation (https://stacks.stanford.edu/file/druid:db586ns4974/seda_documentation_4.0.pdf).
+
+```{r}
+dat_free_lunch <- dat_free_lunch %>%  mutate(ses_cat = case_when(
+                                                sesavgall < -2.5 ~"Below 2.5",
+                                                 sesavgall >= -2.5 &  sesavgall < -1.5 ~ "Between -2.5 & -1.5",
+                                                 sesavgall >= -1.5 &  sesavgall < -0.5 ~ "Between -1.5 & -0.5",
+                                                 sesavgall >= -0.5 &  sesavgall < 0.5 ~ "Between -0.5 & 0.5",
+                                                 sesavgall  >= 0.5 &  sesavgall < 1.5 ~ "Between 0.5 & 1.5",
+                                                 sesavgall >= 1.5 &  sesavgall < 2.5 ~ "Between 1.5 & 2.5",
+                                                 sesavgall >= 2.5 ~"Above 2.5"))
+library(ggpubr)
+F = as.formula("y~x")
+
+lunch_plot<-dat_free_lunch %>% mutate(urban=recode(urban,`1` = "Urban", `0` = "Rural")) %>% ggplot(aes(perfrl, cs_mn_avg_ol, color=as.factor(urban))) + geom_smooth(method = "lm", se=FALSE)+labs(x="% Free or Reduced Lunch", y="Academic Achievement", title="Free/Reduced Lunch & Academic Achievement by Geography")+guides(color=guide_legend(title="Geography"))+stat_regline_equation(label.x = 0.75); lunch_plot
+
+
+ses_plot<-dat_free_lunch %>% drop_na() %>%ggplot(aes(perfrl, cs_mn_avg_ol, color=as.factor(ses_cat))) + stat_smooth(method="lm",fullrange=TRUE, se=FALSE)+labs(x="% Free or Reduced Lunch", y="Academic Achievement", title="Free/Reduced Lunch & Academic Achievement by SES")+guides(color=guide_legend(title="SES category"))+stat_regline_equation(label.x = 0.7, label.y.npc=0.94); ses_plot
+
+```
+
+The graphs above show that the relationship between percent free or reduced lunch and academic achievement is in fact different for districts in rural versus urban areas as well as for different values of socioeconomic status. The slope for urban areas is slightly steeper than that of rural areas meaning that the effect of percent free or reduced lunch on academic achievement in districts is greater in urban areas than rural areas. Furthermore, the relationship between percent free or reduced lunch and academic achievement changes more rapidly in urban areas than in rural areas. We can also see that the relationships are also different at the different categories of socioeconomic status, especially for districts that are at the extremes of socioeconomic status (2.5 standard deviation units above and 2.5 standard deviation units below the average national socioeconomic status). The relationship between percent free or reduced lunch and academic outcomes is positive for districts that are 2.5 standard deviation units above whereas for all other districts the relationship is negative. Additionally, it seems that the relationship is particularly strong in districts with SES that are between 1.5 and 2.5 standard deviation units above the average national socioeconomic status.test 
 
 
 
